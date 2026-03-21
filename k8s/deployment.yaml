@@ -1,0 +1,31 @@
+﻿apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: catalog-api
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: catalog-api
+  template:
+    metadata:
+      labels:
+        app: catalog-api
+    spec:
+      containers:
+      - name: catalog-api
+        image: techgabriel/catalog-api:latest
+        ports:
+          - containerPort: 8083
+        envFrom:
+          - configMapRef:
+              name: catalog-api-config
+          - secretRef:
+              name: catalog-api-secret
+        volumeMounts:
+        - name: catalog-data
+          mountPath: /data
+      volumes:
+      - name: catalog-data
+        persistentVolumeClaim:
+          claimName: catalog-api-pvc
