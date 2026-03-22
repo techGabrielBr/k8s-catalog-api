@@ -29,7 +29,7 @@ A arquitetura segue o padrão comum para workloads executados em Kubernetes.
         │
         ▼
        Pods
-(Catalog API)
+  (Catalog API)
         │
         ├── ConfigMap
         └── Secret
