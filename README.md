@@ -1,6 +1,6 @@
-# K8s Notifications API
+# Catalog API
 
-API REST responsável por gerenciar e enviar **notificações** dentro de uma arquitetura baseada em **microserviços**, preparada para execução em **containers Docker** e orquestração com **Kubernetes (K8s)**.
+API REST responsável por criar **pedidos** dentro de uma arquitetura baseada em **microserviços**, preparada para execução em **containers Docker** e orquestração com **Kubernetes (K8s)**.
 
 O projeto demonstra na prática conceitos fundamentais de **Cloud-Native Applications**, incluindo:
 
@@ -29,7 +29,7 @@ A arquitetura segue o padrão comum para workloads executados em Kubernetes.
         │
         ▼
        Pods
-(Notifications API)
+(Catalog API)
         │
         ├── ConfigMap
         └── Secret
@@ -66,10 +66,10 @@ Infraestrutura
 # Estrutura do Repositório
 
 ```
-k8s-notifications-api
+k8s-catalog-api
 │
 ├── src/
-│   └── NotificationsAPI
+│   └── CatalogAPI
 │
 ├── k8s/
 │   ├── configmap.yaml
@@ -106,8 +106,8 @@ Exemplos de clusters locais que podem ser utilizados:
 Clone o repositório:
 
 ```bash
-git clone https://github.com/techGabrielBr/k8s-notifications-api.git
-cd k8s-notifications-api
+git clone https://github.com/techGabrielBr/k8s-catalog-api.git
+cd k8s-catalog-api
 ```
 
 Executar a aplicação:
@@ -115,7 +115,7 @@ Executar a aplicação:
 ```bash
 dotnet restore
 dotnet build
-dotnet run --project src/NotificationsAPI
+dotnet run --project src/CatalogAPI
 ```
 
 A API estará disponível em:
@@ -131,13 +131,13 @@ http://localhost:5043
 Construir a imagem da aplicação:
 
 ```bash
-docker build -t notifications-api .
+docker build -t catalog-api .
 ```
 
 Executar o container:
 
 ```bash
-docker run -p 5000:5000 notifications-api
+docker run -p 5000:5000 catalog-api
 ```
 
 A API ficará disponível em:
@@ -283,16 +283,10 @@ Funções:
 
 # Testando a API
 
-Exemplo de requisição:
+Exemplo de criação de ordem de compra:
 
 ```bash
-curl http://localhost:5000/notifications
-```
-
-Exemplo de criação de notificação:
-
-```bash
-curl -X POST http://localhost:5000/catalog/place-order \
+curl -X POST http://localhost:5043/catalog/place-order \
 -H "Content-Type: application/json" \
 -d '{
     "gameId": "6B29FC40-CA47-1067-B31D-00DD010662DA",
