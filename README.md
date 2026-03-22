@@ -121,7 +121,7 @@ dotnet run --project src/NotificationsAPI
 A API estará disponível em:
 
 ```
-http://localhost:5000
+http://localhost:5043
 ```
 
 ---
