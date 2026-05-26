@@ -7,5 +7,12 @@
         decimal Price
     );
 
+    public record CreateGameRequest(
+        string Name,
+        string Description,
+        decimal Price,
+        string CoverUrl
+    );
+
     #endregion
 }

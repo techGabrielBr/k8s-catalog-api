@@ -5,5 +5,10 @@ metadata:
 data:
   RABBITMQ_HOST: "rabbitmq"
   ASPNETCORE_URLS: "http://+:8083"
-  ASPNETCORE_ENVIRONMENT: "Development"
+  ASPNETCORE_ENVIRONMENT: "Production"
   PAYMENT_QUEUE: "catalog-payment-queue"
+  MONGODB_CONNECTION_STRING: mongodb://mongodb:27017
+  MONGODB_DATABASE_NAME: catalogdb
+  AWS_SERVICE_URL: "http://host.docker.internal:4566"
+  QUEUE_SQS_URL: "http://host.docker.internal:4566/000000000000/payment-processed-catalog"
+  REDIS_CONNECTION: "redis:6379"

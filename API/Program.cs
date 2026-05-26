@@ -1,22 +1,12 @@
-using CatalogAPI.Events.Consumers;
+using Amazon.SQS;
 using CatalogAPI.Extensions;
 using CatalogAPI.Infrastructure.Data;
 using CatalogAPI.Infrastructure.Repositories;
 using CatalogAPI.Middlewares;
-using Events.Models;
 using MassTransit;
-using Microsoft.EntityFrameworkCore;
+using Prometheus;
 
 var builder = WebApplication.CreateBuilder(args);
-
-// ======================
-// Database (Sqlite)
-// ======================
-var defaultConnection = Environment.GetEnvironmentVariable("DATABASE_CONNECTION");
-
-builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseSqlite(defaultConnection)
-);
 
 // ======================
 // JWT
@@ -39,8 +29,6 @@ builder.Services.AddSwaggerGen(c =>
     });
 });
 
-builder.Services.AddScoped<IUserGameRepository, UserGameRepository>();
-
 // ======================
 // MassTransit Config
 // ======================
@@ -57,8 +45,6 @@ builder.Services.AddMassTransit(x =>
     }
     else
     {
-        x.AddConsumer<PaymentProcessedConsumer>();
-
         x.UsingRabbitMq((context, cfg) =>
         {
             cfg.Host(host, "/", h =>
@@ -67,23 +53,57 @@ builder.Services.AddMassTransit(x =>
                 h.Password(password);
             });
 
-            cfg.ReceiveEndpoint(paymentQueue, e =>
-            {
-                e.ConfigureConsumer<PaymentProcessedConsumer>(context);
-            });
+            cfg.ConfigureEndpoints(context);
         });
     }
 });
 
 // ======================
+// AWS Config
+// ======================
+builder.Services.AddSingleton<IAmazonSQS>(_ =>
+{
+    var AWS_USER = Environment.GetEnvironmentVariable("AWS_USER");
+    var AWS_PASSWORD = Environment.GetEnvironmentVariable("AWS_PASSWORD");
+    var AWS_SERVICE_URL = Environment.GetEnvironmentVariable("AWS_SERVICE_URL");
+
+    if (AWS_USER == null || AWS_PASSWORD == null || AWS_SERVICE_URL == null)
+    {
+        throw new Exception("AWS SQS configuration is missing. Please set environment variables AWS_USER, AWS_PASSWORD and AWS_SERVICE_URL");
+    }
+
+    var config = new AmazonSQSConfig
+    {
+        ServiceURL = AWS_SERVICE_URL,
+        UseHttp = true
+    };
+
+    return new AmazonSQSClient(AWS_USER, AWS_PASSWORD, config);
+});
+
+// ======================
+// Mongo Config
+// ======================
+builder.Services.AddSingleton<AppDbContext>();
+
+// ======================
+// Redis Config
+// ======================
+builder.Services.AddStackExchangeRedisCache(options =>
+{
+    options.Configuration = Environment.GetEnvironmentVariable("REDIS_CONNECTION");
+    options.InstanceName = "catalog-api";
+});
+
+builder.Services.AddScoped<IUserGameRepository, UserGameRepository>();
+builder.Services.AddScoped<IGameRepository, GameRepository>();
+builder.Services.AddHostedService<PaymentProcessedConsumerService>();
+
+// ======================
 var app = builder.Build();
 // ======================
 
-using (var scope = app.Services.CreateScope())
-{
-    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-    db.Database.Migrate();
-}
+app.UseHttpMetrics();
 
 app.UseMiddleware<ExceptionMiddleware>();
 
@@ -98,4 +118,5 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
+app.MapMetrics();
 app.Run();

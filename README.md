@@ -60,6 +60,7 @@ Infraestrutura
 * Kubernetes
 * YAML Manifests
 * kubectl
+* Localstack
 
 ---
 
@@ -92,6 +93,8 @@ Para executar o projeto é necessário possuir instalado:
 * Docker
 * Kubernetes Cluster
 * kubectl
+* AWS CLI
+* Localstack CLI
 
 Exemplos de clusters locais que podem ser utilizados:
 

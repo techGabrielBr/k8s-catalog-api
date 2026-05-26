@@ -1,32 +1,115 @@
+using Amazon.SQS;
+using Amazon.SQS.Model;
 using CatalogAPI.Domain.Entities;
+using CatalogAPI.Events.Models;
 using CatalogAPI.Infrastructure.Repositories;
 using Events.Models;
-using MassTransit;
+using System.Text.Json;
 
-namespace CatalogAPI.Events.Consumers
+public class PaymentProcessedConsumerService : BackgroundService
 {
-    public class PaymentProcessedConsumer(IUserGameRepository userGameRepository) : IConsumer<PaymentProcessedEvent>
+    private readonly IAmazonSQS _sqs;
+    private readonly IServiceScopeFactory _scopeFactory;
+    private readonly string _queueUrl;
+
+    public PaymentProcessedConsumerService(
+        IAmazonSQS sqs,
+        IServiceScopeFactory scopeFactory,
+        IConfiguration config)
     {
-        private readonly IUserGameRepository _userGameRepository = userGameRepository;
+        var QUEUE_URL = Environment.GetEnvironmentVariable("QUEUE_SQS_URL");
 
-        public Task Consume(ConsumeContext<PaymentProcessedEvent> context)
+        if (QUEUE_URL == null)
         {
-            var message = context.Message;
-            var status = message.Status;
+            throw new ArgumentNullException("QUEUE_URL", "A URL da fila SQS não está configurada. Por favor, defina a variável de ambiente QUEUE_URL.");
+        }
 
-            if (status == "Approved") 
+        _sqs = sqs;
+        _scopeFactory = scopeFactory;
+        _queueUrl = QUEUE_URL;
+    }
+
+    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
+    {
+        while (!stoppingToken.IsCancellationRequested)
+        {
+            try
             {
-                _userGameRepository.AddAsync(new UserGame(
+                var response = await _sqs.ReceiveMessageAsync(new ReceiveMessageRequest
+                {
+                    QueueUrl = _queueUrl,
+                    MaxNumberOfMessages = 10,
+                    WaitTimeSeconds = 10
+                }, stoppingToken);
+
+                if (response?.Messages != null && response.Messages.Count > 0)
+                {
+                    foreach (var message in response.Messages)
+                    {
+                        try
+                        {
+                            await HandleMessage(message.Body);
+
+                            await _sqs.DeleteMessageAsync(new DeleteMessageRequest
+                            {
+                                QueueUrl = _queueUrl,
+                                ReceiptHandle = message.ReceiptHandle
+                            }, stoppingToken);
+                        }
+                        catch (Exception ex)
+                        {
+                            Console.WriteLine($"Erro ao processar mensagem: {ex.Message}");
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Erro na comunicação com o SQS: {ex.Message}");
+            }
+
+            await Task.Delay(500, stoppingToken);
+        }
+    }
+
+    private async Task HandleMessage(string body)
+    {
+        try
+        {
+            var envelope =
+                JsonSerializer.Deserialize<EventEnvelope<PaymentProcessedEvent>>(body);
+
+            var evt = envelope?.Message;
+
+            if (evt == null)
+            {
+                Console.WriteLine("Evento inválido");
+                return;
+            }
+
+            if (evt.Status == "Approved")
+            {
+                using var scope = _scopeFactory.CreateScope();
+
+                var repo = scope.ServiceProvider.GetRequiredService<IUserGameRepository>();
+
+                await repo.AddAsync(new UserGame(
                     Guid.NewGuid(),
-                    Guid.Parse(message.UserId),
-                    message.GameId,
-                    message.Price
+                    Guid.Parse(evt.UserId),
+                    evt.GameId,
+                    evt.Price
                 ));
 
-                Console.WriteLine("Pagamento aprovado e game adicionado ao catalogo");
+                Console.WriteLine("Game adicionado ao catálogo");
             }
-            
-            return Task.CompletedTask;
+            else
+            {
+                Console.WriteLine($"Pagamento rejeitado: {evt.Status}");
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Parse error: {ex.Message}");
         }
     }
 }
