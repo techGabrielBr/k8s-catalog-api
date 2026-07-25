@@ -22,10 +22,3 @@ spec:
               name: catalog-api-config
           - secretRef:
               name: catalog-api-secret
-        volumeMounts:
-        - name: catalog-data
-          mountPath: /data
-      volumes:
-      - name: catalog-data
-        persistentVolumeClaim:
-          claimName: catalog-api-pvc
