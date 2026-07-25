@@ -76,6 +76,9 @@ jobs:
     if: github.event_name == 'push'
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
       - name: Configurar credenciais AWS
         uses: aws-actions/configure-aws-credentials@v4
         with:
@@ -89,6 +92,13 @@ jobs:
 
       - name: Configurar kubeconfig
         run: aws eks update-kubeconfig --region ${{ env.AWS_REGION }} --name ${{ env.EKS_CLUSTER_NAME }}
+
+      - name: Aplicar manifests (GitOps - main reflete o cluster)
+        run: |
+          ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+          OS_ENDPOINT="https://$(aws opensearch describe-domain --domain-name fcg-games --query DomainStatus.Endpoint --output text)"
+          sed -i "s|<ACCOUNT_ID>|$ACCOUNT_ID|g; s|<OPENSEARCH_ENDPOINT>|$OS_ENDPOINT|g" k8s/*.yaml
+          kubectl apply -f k8s/
 
       - name: Atualizar imagem do deployment
         run: kubectl set image deployment/${{ env.K8S_DEPLOYMENT }} ${{ env.K8S_DEPLOYMENT }}=${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ github.sha }}
