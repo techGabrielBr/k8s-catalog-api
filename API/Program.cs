@@ -2,8 +2,10 @@ using Amazon.SQS;
 using CatalogAPI.Extensions;
 using CatalogAPI.Infrastructure.Data;
 using CatalogAPI.Infrastructure.Repositories;
+using CatalogAPI.Infrastructure.Search;
 using CatalogAPI.Middlewares;
 using MassTransit;
+using OpenSearch.Client;
 using Prometheus;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -63,28 +65,60 @@ builder.Services.AddMassTransit(x =>
 // ======================
 builder.Services.AddSingleton<IAmazonSQS>(_ =>
 {
-    var AWS_USER = Environment.GetEnvironmentVariable("AWS_USER");
-    var AWS_PASSWORD = Environment.GetEnvironmentVariable("AWS_PASSWORD");
     var AWS_SERVICE_URL = Environment.GetEnvironmentVariable("AWS_SERVICE_URL");
 
-    if (AWS_USER == null || AWS_PASSWORD == null || AWS_SERVICE_URL == null)
+    if (AWS_SERVICE_URL != null)
     {
-        throw new Exception("AWS SQS configuration is missing. Please set environment variables AWS_USER, AWS_PASSWORD and AWS_SERVICE_URL");
+        var config = new AmazonSQSConfig
+        {
+            ServiceURL = AWS_SERVICE_URL,
+            UseHttp = true
+        };
+
+        return new AmazonSQSClient(
+            Environment.GetEnvironmentVariable("AWS_USER") ?? "teste",
+            Environment.GetEnvironmentVariable("AWS_PASSWORD") ?? "teste",
+            config
+        );
     }
 
-    var config = new AmazonSQSConfig
-    {
-        ServiceURL = AWS_SERVICE_URL,
-        UseHttp = true
-    };
-
-    return new AmazonSQSClient(AWS_USER, AWS_PASSWORD, config);
+    return new AmazonSQSClient();
 });
 
 // ======================
 // Mongo Config
 // ======================
 builder.Services.AddSingleton<AppDbContext>();
+
+// ======================
+// OpenSearch Config
+// Amazon OpenSearch -> OPENSEARCH_URL (https) + OPENSEARCH_USERNAME/OPENSEARCH_PASSWORD
+// ======================
+builder.Services.AddSingleton<IOpenSearchClient>(_ =>
+{
+    var OPENSEARCH_URL = Environment.GetEnvironmentVariable("OPENSEARCH_URL");
+
+    if (OPENSEARCH_URL == null)
+    {
+        throw new Exception("OpenSearch configuration is missing. Please set environment variable OPENSEARCH_URL");
+    }
+
+    var settings = new ConnectionSettings(new Uri(OPENSEARCH_URL))
+        .DefaultIndex(GameSearchService.IndexName)
+        .DisableDirectStreaming();
+
+    var OPENSEARCH_USERNAME = Environment.GetEnvironmentVariable("OPENSEARCH_USERNAME");
+    var OPENSEARCH_PASSWORD = Environment.GetEnvironmentVariable("OPENSEARCH_PASSWORD");
+
+    if (!string.IsNullOrEmpty(OPENSEARCH_USERNAME))
+    {
+        settings = settings.BasicAuthentication(OPENSEARCH_USERNAME, OPENSEARCH_PASSWORD);
+    }
+
+    return new OpenSearchClient(settings);
+});
+
+builder.Services.AddSingleton<IGameSearchService, GameSearchService>();
 
 // ======================
 // Redis Config

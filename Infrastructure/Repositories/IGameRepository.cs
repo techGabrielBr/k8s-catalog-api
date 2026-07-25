@@ -9,5 +9,7 @@ namespace CatalogAPI.Infrastructure.Repositories
         Task<List<Game>> GetAllAsync();
 
         Task<Game?> GetByIdAsync(Guid id);
+
+        Task UpdateAsync(Game game);
     }
 }

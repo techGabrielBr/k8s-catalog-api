@@ -14,5 +14,12 @@
         string CoverUrl
     );
 
+    public record UpdateGameRequest(
+        string Name,
+        string Description,
+        decimal Price,
+        string CoverUrl
+    );
+
     #endregion
 }

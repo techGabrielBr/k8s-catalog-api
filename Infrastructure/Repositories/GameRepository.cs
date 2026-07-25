@@ -26,5 +26,13 @@ namespace CatalogAPI.Infrastructure.Repositories
                 .Find(x => x.Id == id)
                 .FirstOrDefaultAsync();
         }
+
+        public async Task UpdateAsync(Game game)
+        {
+            await _context.Games.ReplaceOneAsync(
+                x => x.Id == game.Id,
+                game
+            );
+        }
     }
 }
